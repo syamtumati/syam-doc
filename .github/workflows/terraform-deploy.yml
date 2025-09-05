@@ -1,0 +1,67 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform init (uses terraform/backend.tf)
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Update kubeconfig
+        working-directory: terraform
+        run: |
+          CLUSTER=$(terraform output -raw cluster_name)
+          REGION=$(terraform output -raw region)
+          aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER"
+
+      - name: Apply Karpenter (legacy) CRs
+        run: |
+          set -e
+          kubectl apply -f kubernetes/karpenter-awsnodetemplate.yaml
+          kubectl apply -f kubernetes/karpenter-provisioner.yaml
+
+      - name: Deploy sample app
+        run: kubectl apply -f kubernetes/nginx-deployment.yaml
+
+      - name: Show nodes
+        run: kubectl get nodes -o wide

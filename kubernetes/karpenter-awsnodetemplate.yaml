@@ -1,0 +1,11 @@
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: bottlerocket-spot
+spec:
+  amiFamily: Bottlerocket
+  subnetSelector:
+    karpenter.sh/discovery: eks-br-spot-karpenter
+  securityGroupSelector:
+    karpenter.sh/discovery: eks-br-spot-karpenter
+  instanceProfile: eks-br-spot-karpenter-karpenter-node-instance-profile
