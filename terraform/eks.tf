@@ -1,9 +1,13 @@
+data "aws_ssm_parameter" "bottlerocket_ami" {
+  name = "/aws/service/bottlerocket/aws-k8s-${var.cluster_version}/x86_64/latest/image_id"
+}
+
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.17"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.29"
+  cluster_version = var.cluster_version
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -15,7 +19,7 @@ module "eks" {
   # Managed Node Group → Bottlerocket + Spot
   eks_managed_node_groups = {
     br_spot = {
-      ami_type       = "BOTTLEROCKET_x86_64"
+      ami_id         = data.aws_ssm_parameter.bottlerocket_ami.value
       capacity_type  = "SPOT"
       instance_types = var.node_instance_types
 
