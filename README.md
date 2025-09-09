@@ -207,8 +207,6 @@ Replace `<ACCOUNT_ID>`, `<GITHUB_ORG>`, and `<REPO>`.
 
 ## Architecture Diagram
 
-## Architecture Diagram
-
 ```plain
 +------------------------- AWS Cloud -------------------------+
 |                                                            |
