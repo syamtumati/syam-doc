@@ -201,10 +201,15 @@ Replace `<ACCOUNT_ID>`, `<GITHUB_ORG>`, and `<REPO>`.
     }
   }]
 }
+```
 
+---
 
 ## Architecture Diagram
 
+## Architecture Diagram
+
+```plain
 +------------------------- AWS Cloud -------------------------+
 |                                                            |
 |  +---------------------+    +-----------------------------+ |
@@ -241,6 +246,7 @@ Replace `<ACCOUNT_ID>`, `<GITHUB_ORG>`, and `<REPO>`.
 |  +---------------------+    | +-------------------------+ | |
 |                            +-----------------------------+ |
 +-----------------------------------------------------------+
+```
 
 ### Flow
 1. Terraform -> Provisions VPC, EKS, IAM, Karpenter (Helm)
