@@ -201,3 +201,51 @@ Replace `<ACCOUNT_ID>`, `<GITHUB_ORG>`, and `<REPO>`.
     }
   }]
 }
+
+
+## Architecture Diagram
+
+```text
++------------------------- AWS Cloud -------------------------+
+|                                                            |
+|  +---------------------+    +-----------------------------+ |
+|  | VPC (10.0.0.0/16)  |    | IAM (Tagged, IRSA)         | |
+|  | +----------------+  |    | +-------------------------+ | |
+|  | | Public Subnets |  |    | | Karpenter Node Role     | | |
+|  | | (ELB, NAT)     |  |    | | (EC2, EKS, CNI, SSM)    | | |
+|  | +----------------+  |    | +-------------------------+ | |
+|  | +----------------+  |    | +-------------------------+ | |
+|  | | Private Subnets|  |    | | Karpenter Controller    | | |
+|  | | (Tagged: karpenter.sh/discovery) | (IRSA: EC2, SSM) | | |
+|  | +----------------+  |    | +-------------------------+ | |
+|  +---------------------+    +-----------------------------+ |
+|                                                            |
+|  +---------------------+                                    |
+|  | EC2 (Bottlerocket)  |                                    |
+|  | Spot Instances      |                                    |
+|  | (Karpenter-launched)|                                    |
+|  +---------------------+                                    |
+|                                                            |
++---------|--------------------|-----------------------------+
+          |                    |
++---------v--------------------v-----------------------------+
+|       Kubernetes Cluster (EKS)                            |
+|  +---------------------+    +-----------------------------+ |
+|  | EKS Control Plane   |    | Karpenter Namespace        | |
+|  | (v1.29)            |<-->| +-------------------------+ | |
+|  +---------------------+    | | Karpenter Pods (Helm)    | | |
+|                            | | (Provisions Spot Nodes)   | | |
+|  +---------------------+    | +-------------------------+ | |
+|  | Managed Node Group  |    | +-------------------------+ | |
+|  | (Bottlerocket, Spot)|    | | Nginx Deployment        | | |
+|  | 1-3 Nodes, t3.large |    | | (3 Replicas, ClusterIP) | | |
+|  +---------------------+    | +-------------------------+ | |
+|                            +-----------------------------+ |
++-----------------------------------------------------------+
+
+### Flow
+1. Terraform -> Provisions VPC, EKS, IAM, Karpenter (Helm)
+2. EKS -> Runs control plane, managed node group (SSM-fetched Bottlerocket AMI)
+3. Karpenter -> Watches for unschedulable pods, launches Spot EC2 instances
+4. Nginx -> Runs 3 replicas, triggers Karpenter if nodes are insufficient
+5. IAM -> Enables node authentication (aws-auth) and Karpenter EC2 management
